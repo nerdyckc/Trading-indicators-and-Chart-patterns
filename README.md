@@ -4,7 +4,7 @@ enhanced SuperTrend by nerdyckc - much improved performance by rewriting code us
 
 
 
-<b>I have written Python codes for an indicator and a couple of Advance Chart patterns.
+<pr>I have written Python codes for an indicator and a couple of Advance Chart patterns.
 1.	Indicators: -SuperTrend, ATR
 2.	Chart Patterns: - Heiken Ashi, Renko
 
