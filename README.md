@@ -1,3 +1,9 @@
+---------------------------------------------------------
+enhanced SuperTrend by nerdyckc - much improved performance by rewriting code using pandas dataframe internal functions
+---------------------------------------------------------
+
+
+
 I have written Python codes for an indicator and a couple of Advance Chart patterns.
 1.	Indicators: -SuperTrend, ATR
 2.	Chart Patterns: - Heiken Ashi, Renko
