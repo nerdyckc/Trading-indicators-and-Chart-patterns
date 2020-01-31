@@ -1,57 +1,74 @@
 # -*- coding: utf-8 -*-
 """
-
 @author: techietrader
 
+enhancement by chekitsch, 31 Jan 2020
+utilise talib package, replace all FOR loops with DF internal functions to improve performance
 """
 
 import numpy as np
-import pandas as pd  
+import pandas as pd
+import talib
 
 
 #SuperTrend
 def ST(df,f,n): #df is the dataframe, n is the period, f is the factor; f=3, n=7 are commonly used.
-    #Calculation of ATR
-    df['H-L']=abs(df['High']-df['Low'])
-    df['H-PC']=abs(df['High']-df['Close'].shift(1))
-    df['L-PC']=abs(df['Low']-df['Close'].shift(1))
+    # calculation of ATR using TALIB function
+    df['H-L']=abs(df['high']-df['low'])
+    df['H-PC']=abs(df['high']-df['close'].shift(1))
+    df['L-PC']=abs(df['low']-df['close'].shift(1))
     df['TR']=df[['H-L','H-PC','L-PC']].max(axis=1)
-    df['ATR']=np.nan
-    df.ix[n-1,'ATR']=df['TR'][:n-1].mean() #.ix is deprecated from pandas verion- 0.19
-    for i in range(n,len(df)):
-        df['ATR'][i]=(df['ATR'][i-1]*(n-1)+ df['TR'][i])/n
+    df['ATR']=talib.ATR(df['high'], df['low'], df['close'], timeperiod=n)
 
     #Calculation of SuperTrend
-    df['Upper Basic']=(df['High']+df['Low'])/2+(f*df['ATR'])
-    df['Lower Basic']=(df['High']+df['Low'])/2-(f*df['ATR'])
+    df['Upper Basic']=(df['high']+df['low'])/2+(f*df['ATR'])
+    df['Lower Basic']=(df['high']+df['low'])/2-(f*df['ATR'])
     df['Upper Band']=df['Upper Basic']
     df['Lower Band']=df['Lower Basic']
-    for i in range(n,len(df)):
-        if df['Close'][i-1]<=df['Upper Band'][i-1]:
-            df['Upper Band'][i]=min(df['Upper Basic'][i],df['Upper Band'][i-1])
-        else:
-            df['Upper Band'][i]=df['Upper Basic'][i]    
-    for i in range(n,len(df)):
-        if df['Close'][i-1]>=df['Lower Band'][i-1]:
-            df['Lower Band'][i]=max(df['Lower Basic'][i],df['Lower Band'][i-1])
-        else:
-            df['Lower Band'][i]=df['Lower Basic'][i]   
     df['SuperTrend']=np.nan
-    for i in df['SuperTrend']:
-        if df['Close'][n-1]<=df['Upper Band'][n-1]:
-            df['SuperTrend'][n-1]=df['Upper Band'][n-1]
-        elif df['Close'][n-1]>df['Upper Band'][i]:
-            df['SuperTrend'][n-1]=df['Lower Band'][n-1]
-    for i in range(n,len(df)):
-        if df['SuperTrend'][i-1]==df['Upper Band'][i-1] and df['Close'][i]<=df['Upper Band'][i]:
-            df['SuperTrend'][i]=df['Upper Band'][i]
-        elif  df['SuperTrend'][i-1]==df['Upper Band'][i-1] and df['Close'][i]>=df['Upper Band'][i]:
-            df['SuperTrend'][i]=df['Lower Band'][i]
-        elif df['SuperTrend'][i-1]==df['Lower Band'][i-1] and df['Close'][i]>=df['Lower Band'][i]:
-            df['SuperTrend'][i]=df['Lower Band'][i]
-        elif df['SuperTrend'][i-1]==df['Lower Band'][i-1] and df['Close'][i]<=df['Lower Band'][i]:
-            df['SuperTrend'][i]=df['Upper Band'][i]
-    return df
-    
 
-    
+    # calculate the bands: 
+    # in an UPTREND, lower band does not decrease
+    # in a DOWNTREND, upper band does not increase
+    for i, row in df[n+1:].iterrows():    # begin from row "n"
+        # if currently in DOWNTREND (i.e. price is below upper band)
+        prevClose = df['close'].loc[i-1]
+        prevUpperBand = df['Upper Band'].loc[i-1]
+        currUpperBasic = row['Upper Basic']
+        if prevClose <= prevUpperBand:
+            # upper band will DECREASE in value only
+            df.loc[i, 'Upper Band'] = min(currUpperBasic, prevUpperBand)
+        
+        # if currently in UPTREND (i.e. price is above lower band)
+        prevLowerBand = df['Lower Band'].loc[i-1]
+        currLowerBasic = row['Lower Basic']
+        if prevClose >= prevLowerBand:
+            # lower band will INCREASE in value only
+            df.loc[i, 'Lower Band'] = max(currLowerBasic, prevLowerBand)
+            
+        # >>>>>>>> previous period SuperTrend <<<<<<<<
+        if prevClose <= prevUpperBand:
+            df.loc[i-1, 'SuperTrend'] = prevUpperBand
+        else:
+            df.loc[i-1, 'SuperTrend'] = prevLowerBand
+        prevSuperTrend = df['SuperTrend'].loc[i-1]
+
+    for i, row in df[n+1:].iterrows():    # begin from row "n"
+        prevClose = df['close'].loc[i-1]
+        prevUpperBand = df['Upper Band'].loc[i-1]
+        currUpperBand = row['Upper Band']
+        prevLowerBand = df['Lower Band'].loc[i-1]
+        currLowerBand = row['Lower Band']
+        prevSuperTrend = df['SuperTrend'].loc[i-1]
+        
+        # >>>>>>>>> current period SuperTrend <<<<<<<<<
+        if prevSuperTrend == prevUpperBand and row.close <= currUpperBand:
+            df.loc[i, 'SuperTrend'] = currUpperBand        # remain in DOWNTREND
+        elif prevSuperTrend == prevUpperBand and row.close > currUpperBand:
+            df.loc[i, 'SuperTrend'] = currLowerBand        # switch to UPTREND
+        elif prevSuperTrend == prevLowerBand and row.close >= currLowerBand:
+            df.loc[i, 'SuperTrend'] = currLowerBand        # remain in UPTREND
+        elif prevSuperTrend == prevLowerBand and row.close < currLowerBand:
+            df.loc[i, 'SuperTrend'] = currUpperBand        # switch to DOWNTREND
+            
+    return df
