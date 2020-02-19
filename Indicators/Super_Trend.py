@@ -2,7 +2,7 @@
 """
 @author: techietrader
 
-enhancement by chekitsch, 31 Jan 2020
+enhancement by nerdyckc, 31 Jan 2020
 utilise talib package, replace all FOR loops with DF internal functions to improve performance
 """
 
