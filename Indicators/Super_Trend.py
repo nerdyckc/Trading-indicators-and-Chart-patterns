@@ -14,10 +14,6 @@ import talib
 #SuperTrend
 def ST(df,f,n): #df is the dataframe, n is the period, f is the factor; f=3, n=7 are commonly used.
     # calculation of ATR using TALIB function
-    df['H-L']=abs(df['high']-df['low'])
-    df['H-PC']=abs(df['high']-df['close'].shift(1))
-    df['L-PC']=abs(df['low']-df['close'].shift(1))
-    df['TR']=df[['H-L','H-PC','L-PC']].max(axis=1)
     df['ATR']=talib.ATR(df['high'], df['low'], df['close'], timeperiod=n)
 
     #Calculation of SuperTrend
@@ -62,13 +58,19 @@ def ST(df,f,n): #df is the dataframe, n is the period, f is the factor; f=3, n=7
         prevSuperTrend = df['SuperTrend'].loc[i-1]
         
         # >>>>>>>>> current period SuperTrend <<<<<<<<<
-        if prevSuperTrend == prevUpperBand and row.close <= currUpperBand:
-            df.loc[i, 'SuperTrend'] = currUpperBand        # remain in DOWNTREND
-        elif prevSuperTrend == prevUpperBand and row.close > currUpperBand:
-            df.loc[i, 'SuperTrend'] = currLowerBand        # switch to UPTREND
-        elif prevSuperTrend == prevLowerBand and row.close >= currLowerBand:
-            df.loc[i, 'SuperTrend'] = currLowerBand        # remain in UPTREND
-        elif prevSuperTrend == prevLowerBand and row.close < currLowerBand:
-            df.loc[i, 'SuperTrend'] = currUpperBand        # switch to DOWNTREND
+        if prevSuperTrend == prevUpperBand:             # if currently in DOWNTREND
+            if row.close <= currUpperBand:
+                df.loc[i, 'SuperTrend'] = currUpperBand        # remain in DOWNTREND
+                df.loc[i, 'changedDirection'] = False
+            else:
+                df.loc[i, 'SuperTrend'] = currLowerBand        # switch to UPTREND
+                df.loc[i, 'changedDirection'] = True
+        elif prevSuperTrend == prevLowerBand:           # if currently in UPTREND
+            if row.close >= currLowerBand:
+                df.loc[i, 'SuperTrend'] = currLowerBand        # remain in UPTREND
+                df.loc[i, 'changedDirection'] = False
+            else:
+                df.loc[i, 'SuperTrend'] = currUpperBand        # switch to DOWNTREND
+                df.loc[i, 'changedDirection'] = True
             
     return df
